@@ -35,13 +35,26 @@ entity fpga2_top is
         result_valid   : in  std_logic;
         
         -- Game Status
-        game_status : in  std_logic_vector(2 downto 0)
+        game_status : in  std_logic_vector(2 downto 0);
+        
+        -- Debug LED (optional - shows DCM lock)
+        led_locked  : out std_logic
     );
 end fpga2_top;
 
 architecture Behavioral of fpga2_top is
     
     -- Components
+    component clock_generator is
+        Port (
+            clk_in  : in  std_logic;
+            rst     : in  std_logic;
+            clk_50  : out std_logic;
+            clk_25  : out std_logic;
+            locked  : out std_logic
+        );
+    end component;
+    
     component serial_transmitter is
         Generic (DATA_WIDTH : integer := 40);
         Port (
@@ -109,6 +122,11 @@ architecture Behavioral of fpga2_top is
         );
     end component;
     
+    -- Clock signals
+    signal clk_50        : std_logic;
+    signal clk_25        : std_logic;  -- VGA pixel clock
+    signal clk_locked    : std_logic;
+    
     -- Keyboard signals
     signal ascii_code    : std_logic_vector(7 downto 0);
     signal key_valid     : std_logic;
@@ -154,6 +172,16 @@ architecture Behavioral of fpga2_top is
     
 begin
     
+    -- Clock Generator: 20 MHz → 50 MHz → 25 MHz (for VGA)
+    clk_gen_inst: clock_generator
+        port map (
+            clk_in  => clk,
+            rst     => rst,
+            clk_50  => clk_50,
+            clk_25  => clk_25,
+            locked  => clk_locked
+        );
+    
     -- Serial Transmitter
     word_transmitter: serial_transmitter
         generic map (DATA_WIDTH => 40)
@@ -194,10 +222,10 @@ begin
             key_backspace => key_backspace
         );
     
-    -- VGA Controller
+    -- VGA Controller (uses 25 MHz pixel clock)
     vga_inst: vga_controller
         port map (
-            clk      => clk,
+            clk      => clk_25,
             rst      => rst,
             h_sync   => vga_hsync,
             v_sync   => vga_vsync,
@@ -206,10 +234,10 @@ begin
             video_on => video_on
         );
     
-    -- Display Renderer (3-bit RGB)
+    -- Display Renderer (3-bit RGB, uses 25 MHz pixel clock)
     renderer_inst: display_renderer
         port map (
-            clk         => clk,
+            clk         => clk_25,
             rst         => rst,
             pixel_x     => pixel_x,
             pixel_y     => pixel_y,
@@ -225,6 +253,9 @@ begin
     vga_r <= rgb_signal(2);  -- Red bit
     vga_g <= rgb_signal(1);  -- Green bit
     vga_b <= rgb_signal(0);  -- Blue bit
+    
+    -- Debug: DCM lock LED
+    led_locked <= clk_locked;
     
     -- Flatten game grid
     process(game_grid)

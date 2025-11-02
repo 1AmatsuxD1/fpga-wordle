@@ -1,0 +1,26 @@
+################################################################################
+## VGA Test - Pin Assignment
+## Board: Spartan-6 XC6SLX9-2TQG144C
+################################################################################
+
+## System Clock: OSC (P123) = 20 MHz
+NET "clk" LOC = P123 | IOSTANDARD = LVCMOS33;
+NET "clk" TNM_NET = sys_clk_pin;
+TIMESPEC TS_sys_clk_pin = PERIOD sys_clk_pin 50 ns HIGH 50%;
+
+## System Reset: PB5
+NET "rst" LOC = P51 | IOSTANDARD = LVCMOS33 | PULLDOWN;
+
+## VGA Display (K4 Connector)
+NET "vga_hsync" LOC = P126 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_vsync" LOC = P131 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_r"     LOC = P133 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_g"     LOC = P137 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_b"     LOC = P139 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+
+## Generated clocks
+NET "clk_gen/clk_50_i" TNM_NET = clk_50;
+TIMESPEC TS_clk_50 = PERIOD clk_50 20 ns HIGH 50%;
+
+NET "clk_25" TNM_NET = clk_25;
+TIMESPEC TS_clk_25 = PERIOD clk_25 40 ns HIGH 50%;

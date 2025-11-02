@@ -4,7 +4,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity vga_controller is
     Port (
-        clk      : in  std_logic;
+        clk      : in  std_logic;  -- 25 MHz pixel clock
         rst      : in  std_logic;
         h_sync   : out std_logic;
         v_sync   : out std_logic;
@@ -28,8 +28,6 @@ architecture Behavioral of vga_controller is
     constant V_BACK    : integer := 33;
     constant V_TOTAL   : integer := 525;
     
-    signal clk_divider : std_logic := '0';
-    signal pixel_clk   : std_logic;
     signal h_counter   : unsigned(9 downto 0) := (others => '0');
     signal v_counter   : unsigned(9 downto 0) := (others => '0');
     signal video_on_i  : std_logic;
@@ -38,25 +36,13 @@ architecture Behavioral of vga_controller is
     
 begin
     
-    process(clk)
-    begin
-        if rising_edge(clk) then
-            if rst = '1' then
-                clk_divider <= '0';
-            else
-                clk_divider <= not clk_divider;
-            end if;
-        end if;
-    end process;
-    
-    pixel_clk <= clk_divider;
-    
+    -- Horizontal counter (uses 25 MHz pixel clock directly)
     process(clk)
     begin
         if rising_edge(clk) then
             if rst = '1' then
                 h_counter <= (others => '0');
-            elsif pixel_clk = '1' then
+            else
                 if h_counter = H_TOTAL - 1 then
                     h_counter <= (others => '0');
                 else
@@ -66,16 +52,19 @@ begin
         end if;
     end process;
     
+    -- Vertical counter
     process(clk)
     begin
         if rising_edge(clk) then
             if rst = '1' then
                 v_counter <= (others => '0');
-            elsif pixel_clk = '1' and h_counter = H_TOTAL - 1 then
-                if v_counter = V_TOTAL - 1 then
-                    v_counter <= (others => '0');
-                else
-                    v_counter <= v_counter + 1;
+            else
+                if h_counter = H_TOTAL - 1 then
+                    if v_counter = V_TOTAL - 1 then
+                        v_counter <= (others => '0');
+                    else
+                        v_counter <= v_counter + 1;
+                    end if;
                 end if;
             end if;
         end if;

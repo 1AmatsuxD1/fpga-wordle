@@ -1,0 +1,12 @@
+################################################################################
+## VGA Ultra Simple Test
+################################################################################
+
+NET "clk" LOC = P123 | IOSTANDARD = LVCMOS33;
+NET "led_test" LOC = P82 | IOSTANDARD = LVCMOS33;
+
+NET "vga_hsync" LOC = P126 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_vsync" LOC = P131 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_r"     LOC = P133 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_g"     LOC = P137 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_b"     LOC = P139 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;

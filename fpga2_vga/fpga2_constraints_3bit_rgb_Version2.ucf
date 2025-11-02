@@ -67,7 +67,8 @@ NET "game_status<2>" LOC = P10 | IOSTANDARD = LVCMOS33;  # K2 Pin 11
 ## Debug LEDs (Optional)
 ################################################################################
 
-# NET "debug_led<0>" LOC = P82 | IOSTANDARD = LVCMOS33;  # LED L0
+NET "led_locked" LOC = P82 | IOSTANDARD = LVCMOS33;  # LED L0 - DCM Lock indicator
+
 # NET "debug_led<1>" LOC = P81 | IOSTANDARD = LVCMOS33;  # LED L1
 # NET "debug_led<2>" LOC = P80 | IOSTANDARD = LVCMOS33;  # LED L2
 # NET "debug_led<3>" LOC = P79 | IOSTANDARD = LVCMOS33;  # LED L3
@@ -75,6 +76,10 @@ NET "game_status<2>" LOC = P10 | IOSTANDARD = LVCMOS33;  # K2 Pin 11
 ################################################################################
 ## Timing Constraints
 ################################################################################
+
+## Generated clocks from DCM
+# DCM จะจัดการ timing ของ clocks ที่สร้างขึ้นเอง
+# ไม่จำเป็นต้องระบุ constraints สำหรับ internal clocks
 
 ## Serial Clock (2.5 MHz)
 NET "serial_tx_clk" TNM_NET = serial_tx_clk;

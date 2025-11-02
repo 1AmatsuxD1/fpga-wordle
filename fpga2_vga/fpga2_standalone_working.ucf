@@ -1,0 +1,29 @@
+################################################################################
+## FPGA2 Standalone Working - Pin Assignment
+################################################################################
+
+## System Clock: 20 MHz
+NET "clk" LOC = P123 | IOSTANDARD = LVCMOS33;
+NET "clk" TNM_NET = sys_clk_pin;
+TIMESPEC TS_sys_clk_pin = PERIOD sys_clk_pin 50 ns HIGH 50%;
+
+## Reset
+NET "rst" LOC = P51 | IOSTANDARD = LVCMOS33 | PULLDOWN;
+
+## LED - DCM Lock
+NET "led_locked" LOC = P82 | IOSTANDARD = LVCMOS33;
+
+## PS/2 Keyboard
+NET "ps2_clk"  LOC = P124 | IOSTANDARD = LVCMOS33 | PULLUP;
+NET "ps2_data" LOC = P127 | IOSTANDARD = LVCMOS33 | PULLUP;
+
+## VGA Display
+NET "vga_hsync" LOC = P126 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_vsync" LOC = P131 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_r"     LOC = P133 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_g"     LOC = P137 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+NET "vga_b"     LOC = P139 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+
+## Timing
+NET "ps2_clk" TIG;
+NET "ps2_data" TIG;
