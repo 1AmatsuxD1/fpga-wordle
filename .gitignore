@@ -1,0 +1,59 @@
+# Xilinx ISE files
+*.xise
+*.gise
+*.npl
+*.xreport
+*.projectmgr
+*.xmsgs
+*.lso
+*.ise_ISE_Backup
+
+# Build outputs
+*.ngc
+*.ngd
+*.ncd
+*.pcf
+*.bit
+*.bgn
+*.bld
+*.drc
+*.mrp
+*.ngm
+*.pad
+*.par
+*.twr
+*.twx
+*.unroutes
+*.xpi
+*.xwbt
+
+# Log files
+*.log
+*.xml
+*.html
+*.txt
+xst/
+_xmsgs/
+xlnx_auto_*
+webtalk*
+iseconfig/
+_ngo/
+*.cmd_log
+
+# Simulation files
+isim/
+*.wdb
+*.vcd
+fuse.xmsgs
+fuseRelaunch.cmd
+isim.cmd
+
+# Backup files
+*.bak
+*~
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

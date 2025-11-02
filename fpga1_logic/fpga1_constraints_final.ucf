@@ -1,0 +1,71 @@
+################################################################################
+## FPGA Board #1: Game Logic - Pin Assignment (FINAL)
+## Board: Spartan-6 XC6SLX9-2TQG144C
+## Clock: P123 (OSC) = 20 MHz ✅
+## Date: 2025-11-01
+################################################################################
+
+################################################################################
+## System Clock & Reset
+################################################################################
+
+## System Clock: OSC (P123) = 20 MHz
+NET "clk" LOC = P123 | IOSTANDARD = LVCMOS33;
+NET "clk" TNM_NET = sys_clk_pin;
+TIMESPEC TS_sys_clk_pin = PERIOD sys_clk_pin 50 ns HIGH 50%;  # 20 MHz
+
+## System Reset: PB5
+NET "rst" LOC = P51 | IOSTANDARD = LVCMOS33 | PULLDOWN;
+
+################################################################################
+## Serial Communication - รับคำทายจาก FPGA #2
+################################################################################
+
+NET "serial_rx_data" LOC = P5  | IOSTANDARD = LVCMOS33;  # K1 Pin 15
+NET "serial_rx_clk"  LOC = P7  | IOSTANDARD = LVCMOS33;  # K1 Pin 13
+NET "data_valid"     LOC = P9  | IOSTANDARD = LVCMOS33;  # K1 Pin 11
+
+################################################################################
+## Serial Communication - ส่งผลลัพธ์ไป FPGA #2
+################################################################################
+
+NET "serial_tx_data" LOC = P11 | IOSTANDARD = LVCMOS33;  # K1 Pin 9
+NET "serial_tx_clk"  LOC = P14 | IOSTANDARD = LVCMOS33;  # K1 Pin 7
+NET "acknowledge"    LOC = P16 | IOSTANDARD = LVCMOS33;  # K1 Pin 5
+NET "result_valid"   LOC = P21 | IOSTANDARD = LVCMOS33;  # K1 Pin 3
+
+################################################################################
+## Game Status (ไป FPGA #2)
+################################################################################
+
+NET "game_status<0>" LOC = P6  | IOSTANDARD = LVCMOS33;  # K2 Pin 15
+NET "game_status<1>" LOC = P8  | IOSTANDARD = LVCMOS33;  # K2 Pin 13
+NET "game_status<2>" LOC = P10 | IOSTANDARD = LVCMOS33;  # K2 Pin 11
+
+################################################################################
+## Debug LEDs (Optional)
+################################################################################
+
+# NET "debug_led<0>" LOC = P82 | IOSTANDARD = LVCMOS33;  # LED L0
+# NET "debug_led<1>" LOC = P81 | IOSTANDARD = LVCMOS33;  # LED L1
+# NET "debug_led<2>" LOC = P80 | IOSTANDARD = LVCMOS33;  # LED L2
+# NET "debug_led<3>" LOC = P79 | IOSTANDARD = LVCMOS33;  # LED L3
+
+################################################################################
+## Timing Constraints
+################################################################################
+
+## Serial Clock (2.5 MHz)
+NET "serial_rx_clk" TNM_NET = serial_rx_clk;
+TIMESPEC TS_serial_rx_clk = PERIOD serial_rx_clk 400 ns HIGH 50%;
+
+NET "serial_tx_clk" TNM_NET = serial_tx_clk;
+TIMESPEC TS_serial_tx_clk = PERIOD serial_tx_clk 400 ns HIGH 50%;
+
+## Asynchronous Inputs
+NET "serial_rx_data" TIG;
+NET "data_valid" TIG;
+
+################################################################################
+## End of Constraints
+################################################################################
