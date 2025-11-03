@@ -10,7 +10,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity char_rom is
     Port (
-        clk       : in  std_logic;
+        pixel_clk : in  std_logic;
         char_code : in  std_logic_vector(7 downto 0);  -- ASCII code (0x41-0x5A = A-Z)
         row       : in  unsigned(2 downto 0);          -- แถวที่ 0-7
         col       : in  unsigned(2 downto 0);          -- คอลัมน์ที่ 0-7
@@ -361,9 +361,9 @@ begin
     end process;
     
     -- อ่านข้อมูลจาก ROM
-    process(clk)
+    process(pixel_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(pixel_clk) then
             -- อ่านแถวของตัวอักษร
             char_data <= FONT(char_index)(to_integer(row));
             

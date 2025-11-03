@@ -9,7 +9,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity display_renderer is
     Port (
-        clk         : in  std_logic;
+        pixel_clk   : in  std_logic;  -- pixel clock (use same clock as vga_controller)
         rst         : in  std_logic;
         pixel_x     : in  unsigned(9 downto 0);
         pixel_y     : in  unsigned(9 downto 0);
@@ -27,7 +27,7 @@ architecture Behavioral of display_renderer is
     -- Component: Character ROM
     component char_rom is
         Port (
-            clk       : in  std_logic;
+            pixel_clk : in  std_logic;
             char_code : in  std_logic_vector(7 downto 0);
             row       : in  unsigned(2 downto 0);
             col       : in  unsigned(2 downto 0);
@@ -82,7 +82,7 @@ begin
     -- Instantiate Character ROM
     char_rom_inst: char_rom
         port map (
-            clk       => clk,
+            pixel_clk => pixel_clk,
             char_code => cell_letter,
             row       => char_rom_row,
             col       => char_rom_col,
@@ -194,15 +194,15 @@ begin
         end case;
     end process;
     
-    -- วาดพิกเซล
-    process(clk)
+    -- วาดพิกเซล (synchronous to pixel clock)
+    process(pixel_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(pixel_clk) then
             if rst = '1' or video_on = '0' then
                 rgb <= COLOR_BLACK;
             else
                 rgb <= COLOR_BLACK;
-                
+
                 if in_cell = '1' then
                     if in_border = '1' then
                         rgb <= COLOR_BORDER;
@@ -216,7 +216,7 @@ begin
                         rgb <= bg_color;
                     end if;
                 end if;
-                
+
                 -- Status bar
                 if pixel_y > 450 then
                     if game_status = "001" then

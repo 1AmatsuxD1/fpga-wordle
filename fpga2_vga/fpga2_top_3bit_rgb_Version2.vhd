@@ -97,7 +97,7 @@ architecture Behavioral of fpga2_top is
     
     component vga_controller is
         Port (
-            clk      : in  std_logic;
+            pixel_clk: in  std_logic; -- pixel clock
             rst      : in  std_logic;
             h_sync   : out std_logic;
             v_sync   : out std_logic;
@@ -109,7 +109,7 @@ architecture Behavioral of fpga2_top is
     
     component display_renderer is
         Port (
-            clk         : in  std_logic;
+            pixel_clk   : in  std_logic;
             rst         : in  std_logic;
             pixel_x     : in  unsigned(9 downto 0);
             pixel_y     : in  unsigned(9 downto 0);
@@ -138,6 +138,7 @@ architecture Behavioral of fpga2_top is
     signal pixel_y       : unsigned(9 downto 0);
     signal video_on      : std_logic;
     signal rgb_signal    : std_logic_vector(2 downto 0);  -- 3-bit RGB
+    signal pixel_clk     : std_logic; -- pixel clock; currently tied to system clk for testing
     
     -- Serial signals
     signal word_to_send    : std_logic_vector(39 downto 0);
@@ -237,7 +238,7 @@ begin
     -- Display Renderer (3-bit RGB, uses 25 MHz pixel clock)
     renderer_inst: display_renderer
         port map (
-            clk         => clk_25,
+            pixel_clk   => clk_25,
             rst         => rst,
             pixel_x     => pixel_x,
             pixel_y     => pixel_y,
