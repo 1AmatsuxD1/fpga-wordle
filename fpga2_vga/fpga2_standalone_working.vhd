@@ -62,7 +62,7 @@ architecture Behavioral of fpga2_standalone_working is
     -- Display Renderer
     component display_renderer is
         Port (
-            clk         : in  std_logic;
+            pixel_clk   : in  std_logic;
             rst         : in  std_logic;
             pixel_x     : in  unsigned(9 downto 0);
             pixel_y     : in  unsigned(9 downto 0);
@@ -229,7 +229,7 @@ begin
     -- Instantiate display_renderer
     renderer_inst : display_renderer
     port map (
-        clk => clk_25,
+        pixel_clk => clk_25,
         rst => rst_i,
         pixel_x => h_counter,
         pixel_y => v_counter,

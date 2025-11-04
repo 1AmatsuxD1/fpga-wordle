@@ -43,13 +43,13 @@ NET "game_status<1>" LOC = P8  | IOSTANDARD = LVCMOS33;  # K2 Pin 13
 NET "game_status<2>" LOC = P10 | IOSTANDARD = LVCMOS33;  # K2 Pin 11
 
 ################################################################################
-## Debug LEDs (Optional)
+## Debug LEDs
 ################################################################################
 
-# NET "debug_led<0>" LOC = P82 | IOSTANDARD = LVCMOS33;  # LED L0
-# NET "debug_led<1>" LOC = P81 | IOSTANDARD = LVCMOS33;  # LED L1
-# NET "debug_led<2>" LOC = P80 | IOSTANDARD = LVCMOS33;  # LED L2
-# NET "debug_led<3>" LOC = P79 | IOSTANDARD = LVCMOS33;  # LED L3
+NET "heartbeat_led" LOC = P79 | IOSTANDARD = LVCMOS33;  # LED L3 - Heartbeat (กระพริบ = ทำงาน)
+NET "debug_led<0>"  LOC = P82 | IOSTANDARD = LVCMOS33;  # LED L0 - FSM bit 0
+NET "debug_led<1>"  LOC = P81 | IOSTANDARD = LVCMOS33;  # LED L1 - FSM bit 1
+NET "debug_led<2>"  LOC = P80 | IOSTANDARD = LVCMOS33;  # LED L2 - FSM bit 2
 
 ################################################################################
 ## Timing Constraints

@@ -36,16 +36,27 @@ architecture Behavioral of display_renderer is
     end component;
     
     -- ค่าคงที่: ขนาดและตำแหน่งตาราง
-    constant GRID_START_X : integer := 160;
-    constant GRID_START_Y : integer := 60;
-    constant CELL_WIDTH   : integer := 60;
-    constant CELL_HEIGHT  : integer := 60;
-    constant CELL_SPACING : integer := 10;
+    -- Grid total: 5×55 + 4×8 = 275 + 32 = 307 width, 6×55 + 5×8 = 330 + 40 = 370 height
+    constant GRID_START_X : integer := 167;  -- (640-307)/2 = 166.5 ≈ 167
+    constant GRID_START_Y : integer := 70;   -- Title(32) + spacing(10) + margin(28)
+    constant CELL_WIDTH   : integer := 55;   -- ลดจาก 60
+    constant CELL_HEIGHT  : integer := 55;   -- ลดจาก 60
+    constant CELL_SPACING : integer := 8;    -- ลดจาก 10
     constant CELL_BORDER  : integer := 2;
     
-    constant CHAR_WIDTH   : integer := 40;
-    constant CHAR_HEIGHT  : integer := 40;
-    constant CHAR_SCALE   : integer := 5;
+    constant CHAR_WIDTH   : integer := 32;   -- ลดขนาดตัวอักษรในเซลล์ (8×4=32)
+    constant CHAR_HEIGHT  : integer := 32;   -- ให้เหมาะกับเซลล์ 55×55
+    constant CHAR_SCALE   : integer := 4;    -- ขยาย 4 เท่า
+    
+    -- ค่าคงที่สำหรับ Title "WORDLE"
+    -- คำนวณตำแหน่ง: 6 ตัว × 32 + 5 spacing × 4 = 192 + 20 = 212 pixels total
+    -- ตรงกลาง: (640 - 212) / 2 = 214
+    constant TITLE_START_X : integer := 214;  -- ตรงกลางหน้าจอ
+    constant TITLE_START_Y : integer := 10;   -- บนสุดของหน้าจอ
+    constant TITLE_CHAR_WIDTH  : integer := 32;  -- 8 pixels × 4 scale
+    constant TITLE_CHAR_HEIGHT : integer := 32;  -- 8 pixels × 4 scale
+    constant TITLE_CHAR_SPACING : integer := 4;  -- ระยะห่างระหว่างตัวอักษร
+    constant TITLE_CHAR_SCALE   : integer := 4;  -- ขยาย 4 เท่า
     
     -- สีต่างๆ (3 bits: R G B)
     constant COLOR_BLACK      : std_logic_vector(2 downto 0) := "000";  -- ⚫ ดำ
@@ -77,9 +88,17 @@ architecture Behavioral of display_renderer is
     
     signal bg_color     : std_logic_vector(2 downto 0);
     
+    -- สัญญาณสำหรับ Title "WORDLE"
+    signal in_title_area : std_logic;
+    signal title_char_index : integer range 0 to 5;  -- W=0, O=1, R=2, D=3, L=4, E=5
+    signal title_char_code  : std_logic_vector(7 downto 0);
+    signal title_rom_row    : unsigned(2 downto 0);
+    signal title_rom_col    : unsigned(2 downto 0);
+    signal title_pixel      : std_logic;
+    
 begin
     
-    -- Instantiate Character ROM
+    -- Instantiate Character ROM สำหรับตัวอักษรในเซลล์
     char_rom_inst: char_rom
         port map (
             pixel_clk => pixel_clk,
@@ -87,6 +106,16 @@ begin
             row       => char_rom_row,
             col       => char_rom_col,
             pixel     => char_pixel
+        );
+    
+    -- Instantiate Character ROM สำหรับ Title "WORDLE"
+    title_rom_inst: char_rom
+        port map (
+            pixel_clk => pixel_clk,
+            char_code => title_char_code,
+            row       => title_rom_row,
+            col       => title_rom_col,
+            pixel     => title_pixel
         );
     
     -- หาว่าพิกเซลปัจจุบันอยู่ในเซลล์ไหน
@@ -188,9 +217,63 @@ begin
     begin
         case cell_color is
             when "000" => bg_color <= COLOR_MAGENTA;  -- Gray → Magenta (ม่วง)
-            when "001" => bg_color <= COLOR_YELLOW;   -- Yellow
-            when "010" => bg_color <= COLOR_GREEN;    -- Green
+            when "001" => bg_color <= COLOR_YELLOW;   -- Yellow (เหลือง)
+            when "010" => bg_color <= COLOR_GREEN;    -- Green (เขียว)
+            when "011" => bg_color <= "011";          -- Cyan (ฟ้า) - for test
+            when "101" => bg_color <= COLOR_MAGENTA;  -- Magenta (ม่วง)
+            when "110" => bg_color <= COLOR_YELLOW;   -- Yellow (เหลือง)
+            when "111" => bg_color <= COLOR_WHITE;    -- White (ขาว) - for test
             when others => bg_color <= COLOR_BLACK;
+        end case;
+    end process;
+    
+    -- ตรวจสอบว่าพิกเซลอยู่ใน Title "WORDLE" หรือไม่
+    process(pixel_x, pixel_y)
+        variable temp_x, temp_y : integer;
+        variable char_x, char_y : integer;
+    begin
+        in_title_area <= '0';
+        title_char_index <= 0;
+        title_rom_row <= (others => '0');
+        title_rom_col <= (others => '0');
+        
+        temp_x := to_integer(pixel_x) - TITLE_START_X;
+        temp_y := to_integer(pixel_y) - TITLE_START_Y;
+        
+        if temp_y >= 0 and temp_y < TITLE_CHAR_HEIGHT and temp_x >= 0 then
+            for i in 0 to 5 loop  -- 6 ตัวอักษร: W O R D L E
+                if temp_x >= i * (TITLE_CHAR_WIDTH + TITLE_CHAR_SPACING) and
+                   temp_x < i * (TITLE_CHAR_WIDTH + TITLE_CHAR_SPACING) + TITLE_CHAR_WIDTH then
+                    
+                    in_title_area <= '1';
+                    title_char_index <= i;
+                    
+                    char_x := (temp_x - i * (TITLE_CHAR_WIDTH + TITLE_CHAR_SPACING)) / TITLE_CHAR_SCALE;
+                    char_y := temp_y / TITLE_CHAR_SCALE;
+                    
+                    if char_x >= 0 and char_x < 8 then
+                        title_rom_col <= to_unsigned(char_x, 3);
+                    end if;
+                    
+                    if char_y >= 0 and char_y < 8 then
+                        title_rom_row <= to_unsigned(char_y, 3);
+                    end if;
+                end if;
+            end loop;
+        end if;
+    end process;
+    
+    -- กำหนด Character Code สำหรับ "WORDLE"
+    process(title_char_index)
+    begin
+        case title_char_index is
+            when 0 => title_char_code <= x"57";  -- 'W'
+            when 1 => title_char_code <= x"4F";  -- 'O'
+            when 2 => title_char_code <= x"52";  -- 'R'
+            when 3 => title_char_code <= x"44";  -- 'D'
+            when 4 => title_char_code <= x"4C";  -- 'L'
+            when 5 => title_char_code <= x"45";  -- 'E'
+            when others => title_char_code <= x"00";
         end case;
     end process;
     
@@ -203,7 +286,15 @@ begin
             else
                 rgb <= COLOR_BLACK;
 
-                if in_cell = '1' then
+                -- วาด Title "WORDLE" (สีเขียว)
+                if in_title_area = '1' then
+                    if title_pixel = '1' then
+                        rgb <= COLOR_GREEN;  -- ตัวอักษร WORDLE สีเขียว
+                    else
+                        rgb <= COLOR_BLACK;  -- พื้นหลังสีดำ
+                    end if;
+                -- วาดตารางเกม
+                elsif in_cell = '1' then
                     if in_border = '1' then
                         rgb <= COLOR_BORDER;
                     elsif in_char_area = '1' then

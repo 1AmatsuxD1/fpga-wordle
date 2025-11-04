@@ -21,7 +21,11 @@ entity fpga1_top is
         serial_tx_clk  : out std_logic;
         acknowledge    : out std_logic;
         result_valid   : out std_logic;
-        game_status    : out std_logic_vector(2 downto 0)
+        game_status    : out std_logic_vector(2 downto 0);
+        
+        -- Debug LEDs
+        debug_led      : out std_logic_vector(2 downto 0);  -- FSM state indicator
+        heartbeat_led  : out std_logic                       -- Heartbeat (กระพริบบอกว่า FPGA ทำงาน)
     );
 end fpga1_top;
 
@@ -100,6 +104,11 @@ architecture Behavioral of fpga1_top is
     signal all_green        : std_logic;
     signal result_valid_i   : std_logic;
     
+    -- Heartbeat counter (กระพริบทุก 0.5 วินาที)
+    signal heartbeat_counter : unsigned(23 downto 0) := (others => '0');
+    signal heartbeat_led_i   : std_logic := '0';  -- Internal signal
+    constant HEARTBEAT_MAX   : unsigned(23 downto 0) := x"989680";  -- 10M cycles @ 20MHz = 0.5s
+    
     -- Color constants
     constant COLOR_GRAY     : std_logic_vector(2 downto 0) := "000";
     constant COLOR_YELLOW   : std_logic_vector(2 downto 0) := "001";
@@ -170,13 +179,14 @@ begin
     end process;
     
     -- FSM: Next state logic
-    process(current_state, word_received, compare_done, tx_done, guess_count, all_green)
+    process(current_state, word_received, compare_done, tx_done, guess_count, all_green, data_valid)
     begin
         next_state <= current_state;
         
         case current_state is
             when IDLE =>
-                if word_received = '1' then
+                -- รอทั้g word_received และ data_valid
+                if word_received = '1' and data_valid = '1' then
                     next_state <= RECEIVE_WORD;
                 end if;
             
@@ -187,7 +197,8 @@ begin
                 if compare_done = '1' then
                     if all_green = '1' then
                         next_state <= WIN;
-                    elsif guess_count >= MAX_GUESSES then
+                    elsif guess_count >= MAX_GUESSES - 1 then
+                        -- Check >= 5 เพราะครั้งที่ 6 (count=5) คือครั้งสุดท้าย
                         next_state <= LOSE;
                     else
                         next_state <= SEND_RESULT;
@@ -238,23 +249,26 @@ begin
                     when SEND_RESULT =>
                         if tx_busy = '0' and tx_send_start = '0' then
                             tx_send_start  <= '1';
-                            result_valid_i <= '1';
                             guess_count    <= guess_count + 1;
                         end if;
+                        -- Keep result_valid HIGH during transmission
+                        result_valid_i <= '1';
                         game_status <= STATUS_PLAYING;
                     
                     when WIN =>
-                        if tx_busy = '0' and result_valid_i = '0' then
+                        if tx_busy = '0' and tx_send_start = '0' then
                             tx_send_start  <= '1';
-                            result_valid_i <= '1';
                         end if;
+                        -- Keep result_valid HIGH during transmission
+                        result_valid_i <= '1';
                         game_status <= STATUS_WIN;
                     
                     when LOSE =>
-                        if tx_busy = '0' and result_valid_i = '0' then
+                        if tx_busy = '0' and tx_send_start = '0' then
                             tx_send_start  <= '1';
-                            result_valid_i <= '1';
                         end if;
+                        -- Keep result_valid HIGH during transmission
+                        result_valid_i <= '1';
                         game_status <= STATUS_LOSE;
                 end case;
             end if;
@@ -279,7 +293,34 @@ begin
         end if;
     end process;
     
-    -- Connect internal signal to output port
+    -- Connect internal signals to output ports
     result_valid <= result_valid_i;
+    heartbeat_led <= heartbeat_led_i;
+    
+    -- Heartbeat LED: กระพริบทุก 0.5 วินาที เพื่อบอกว่า FPGA ทำงาน
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '1' then
+                heartbeat_counter <= (others => '0');
+                heartbeat_led_i <= '0';
+            else
+                if heartbeat_counter >= HEARTBEAT_MAX then
+                    heartbeat_counter <= (others => '0');
+                    heartbeat_led_i <= not heartbeat_led_i;  -- Toggle
+                else
+                    heartbeat_counter <= heartbeat_counter + 1;
+                end if;
+            end if;
+        end if;
+    end process;
+    
+    -- Debug LEDs: แสดง input signals เพื่อ debug
+    -- LED<0> = data_valid (FPGA #2 บอกว่าส่งข้อมูลแล้ว)
+    -- LED<1> = word_received (Serial receiver รับครบแล้ว)
+    -- LED<2> = serial_rx_clk activity (มี clock จาก FPGA #2 หรือไม่)
+    debug_led(0) <= data_valid;
+    debug_led(1) <= word_received;
+    debug_led(2) <= serial_rx_clk;
     
 end Behavioral;

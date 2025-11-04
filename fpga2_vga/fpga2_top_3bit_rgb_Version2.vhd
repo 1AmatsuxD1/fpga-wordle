@@ -37,12 +37,20 @@ entity fpga2_top is
         -- Game Status
         game_status : in  std_logic_vector(2 downto 0);
         
-        -- Debug LED (optional - shows DCM lock)
-        led_locked  : out std_logic
+        -- Debug LEDs
+        led_locked     : out std_logic;                      -- DCM lock status
+        debug_led      : out std_logic_vector(2 downto 0);   -- FSM state indicator
+        
+        -- Debug: TX signals (ตรวจสอบว่า FPGA #2 ส่งจริงหรือไม่)
+        debug_tx_clk   : out std_logic;  -- Copy of serial_tx_clk
+        debug_data_valid : out std_logic   -- Copy of data_valid
     );
 end fpga2_top;
 
 architecture Behavioral of fpga2_top is
+    
+    -- Test Mode: ตั้งเป็น true เพื่อทดสอบโดยไม่ต้องเชื่อม FPGA #1
+    constant TEST_MODE : boolean := false;  -- false = เชื่อมต่อกับ FPGA #1
     
     -- Components
     component clock_generator is
@@ -97,7 +105,7 @@ architecture Behavioral of fpga2_top is
     
     component vga_controller is
         Port (
-            pixel_clk: in  std_logic; -- pixel clock
+            clk      : in  std_logic; -- pixel clock (25 MHz)
             rst      : in  std_logic;
             h_sync   : out std_logic;
             v_sync   : out std_logic;
@@ -149,6 +157,19 @@ architecture Behavioral of fpga2_top is
     signal result_ready    : std_logic;
     signal rx_busy         : std_logic;
     
+    -- Internal signals for outputs (to avoid reading from 'out' ports)
+    signal serial_tx_clk_i : std_logic;
+    signal data_valid_i    : std_logic;
+    
+    -- Debug signals (latch สำหรับมองเห็นด้วยตาเปล่า)
+    signal key_valid_latch : std_logic := '0';
+    signal key_enter_latch : std_logic := '0';
+    signal key_enter_counter : unsigned(23 downto 0) := (others => '0');  -- นับเวลาค้าง (1 วินาที)
+    constant LATCH_TIME : unsigned(23 downto 0) := x"1312D0";  -- 20M cycles = 1 วินาที
+    
+    -- TX state tracking
+    signal tx_was_busy : std_logic := '0';  -- ติดตามว่า tx_busy เคยเป็น '1' หรือไม่
+    
     -- Game grid
     type grid_cell is record
         letter : std_logic_vector(7 downto 0);
@@ -166,10 +187,14 @@ architecture Behavioral of fpga2_top is
     signal word_buffer   : word_buffer_type;
     signal buffer_index  : unsigned(2 downto 0);
     
-    type control_state_type is (INPUT_LETTERS, WAIT_TX, WAIT_ACKNOWLEDGE, RECEIVE_RESULT, GAME_END);
+    type control_state_type is (INPUT_LETTERS, START_TX, WAIT_TX, WAIT_ACKNOWLEDGE, RECEIVE_RESULT, GAME_END);
     signal control_state : control_state_type;
     
     signal game_grid_flat : std_logic_vector(1079 downto 0);
+    
+    -- Timeout counter (ป้องกัน FSM ค้าง)
+    signal timeout_counter : unsigned(23 downto 0) := (others => '0');
+    constant TIMEOUT_MAX   : unsigned(23 downto 0) := x"4C4B40";  -- ~5 วินาที @ 20MHz
     
 begin
     
@@ -192,10 +217,14 @@ begin
             data_in     => word_to_send,
             send_start  => tx_send_start,
             serial_data => serial_tx_data,
-            serial_clk  => serial_tx_clk,
+            serial_clk  => serial_tx_clk_i,
             busy        => tx_busy,
             done        => tx_done
         );
+    
+    -- Connect internal signals to output ports
+    serial_tx_clk <= serial_tx_clk_i;
+    data_valid    <= data_valid_i;
     
     -- Serial Receiver
     result_receiver: serial_receiver
@@ -258,6 +287,17 @@ begin
     -- Debug: DCM lock LED
     led_locked <= clk_locked;
     
+    -- Debug: แสดง control_state และ tx_busy
+    -- L3 = tx_busy
+    -- L2:L1 = control_state (00=INPUT, 01=START_TX/WAIT_TX, 10=WAIT_ACK, 11=RECEIVE)
+    debug_led(2) <= tx_busy;
+    debug_led(1) <= '1' when (control_state = WAIT_ACKNOWLEDGE or control_state = GAME_END) else '0';
+    debug_led(0) <= '1' when (control_state = START_TX or control_state = WAIT_TX or control_state = GAME_END) else '0';
+    
+    -- Debug outputs: แสดงสัญญาณ TX จริงๆ เพื่อตรวจสอบว่าส่งออกหรือไม่
+    debug_tx_clk <= serial_tx_clk_i;     -- แสดง serial clock
+    debug_data_valid <= data_valid_i;    -- แสดง data_valid signal
+    
     -- Flatten game grid
     process(game_grid)
     begin
@@ -269,6 +309,38 @@ begin
         end loop;
     end process;
     
+    -- Latch debug signals เพื่อให้มองเห็นได้นาน
+    -- key_valid_latch ติดเมื่อมีการพิมพ์, ดับเมื่อเริ่มรอบใหม่
+    -- key_enter_latch ติดค้าง 1 วินาทีเมื่อกด Enter/Space
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '1' then
+                key_valid_latch <= '0';
+                key_enter_latch <= '0';
+                key_enter_counter <= (others => '0');
+            else
+                -- key_valid_latch: ติดเมื่อมีการพิมพ์, ดับเมื่อ buffer_index = 0
+                if buffer_index = 0 then
+                    key_valid_latch <= '0';
+                elsif key_valid = '1' then
+                    key_valid_latch <= '1';
+                end if;
+                
+                -- key_enter_latch: ใช้ counter ค้างไว้ 1 วินาที
+                if key_enter = '1' then
+                    key_enter_latch <= '1';
+                    key_enter_counter <= LATCH_TIME;  -- เริ่มนับถอยหลัง
+                elsif key_enter_counter > 0 then
+                    key_enter_counter <= key_enter_counter - 1;
+                    key_enter_latch <= '1';  -- ยังคงติดอยู่
+                else
+                    key_enter_latch <= '0';  -- หมดเวลา ดับ
+                end if;
+            end if;
+        end if;
+    end process;
+    
     -- Main control FSM (เหมือนเดิม)
     process(clk)
     begin
@@ -276,9 +348,12 @@ begin
             if rst = '1' then
                 control_state <= INPUT_LETTERS;
                 current_row   <= (others => '0');
+                current_col   <= (others => '0');
                 buffer_index  <= (others => '0');
-                data_valid    <= '0';
+                data_valid_i  <= '0';
                 tx_send_start <= '0';
+                tx_was_busy   <= '0';
+                timeout_counter <= (others => '0');
                 
                 for row in 0 to 5 loop
                     for col in 0 to 4 loop
@@ -288,8 +363,28 @@ begin
                 end loop;
                 
             else
-                data_valid    <= '0';
-                tx_send_start <= '0';
+                -- Sync current_col with buffer_index
+                current_col <= buffer_index;
+                
+                -- Timeout counter
+                if control_state = INPUT_LETTERS or control_state = GAME_END then
+                    timeout_counter <= (others => '0');
+                else
+                    timeout_counter <= timeout_counter + 1;
+                end if;
+                
+                -- Timeout protection: กลับสู่ INPUT_LETTERS ถ้าค้างนานเกินไป
+                if timeout_counter >= TIMEOUT_MAX then
+                    control_state <= INPUT_LETTERS;
+                    timeout_counter <= (others => '0');
+                    -- แสดงสีเทาทั้งหมด (บ่งบอกว่า timeout)
+                    for col in 0 to 4 loop
+                        game_grid(to_integer(current_row))(col).color <= "000";
+                    end loop;
+                    current_row   <= current_row + 1;
+                    current_col   <= (others => '0');
+                    buffer_index  <= (others => '0');
+                end if;
                 
                 case control_state is
                     when INPUT_LETTERS =>
@@ -298,15 +393,17 @@ begin
                                (unsigned(ascii_code) >= x"61" and unsigned(ascii_code) <= x"7A") then
                                 
                                 if buffer_index < 5 then
+                                    -- แปลง lowercase เป็น uppercase
                                     if unsigned(ascii_code) >= x"61" then
                                         word_buffer(to_integer(buffer_index)) <= 
                                             std_logic_vector(unsigned(ascii_code) - x"20");
+                                        game_grid(to_integer(current_row))(to_integer(buffer_index)).letter <= 
+                                            std_logic_vector(unsigned(ascii_code) - x"20");
                                     else
                                         word_buffer(to_integer(buffer_index)) <= ascii_code;
+                                        game_grid(to_integer(current_row))(to_integer(buffer_index)).letter <= 
+                                            ascii_code;
                                     end if;
-                                    
-                                    game_grid(to_integer(current_row))(to_integer(buffer_index)).letter <= 
-                                        word_buffer(to_integer(buffer_index));
                                     
                                     buffer_index <= buffer_index + 1;
                                 end if;
@@ -319,22 +416,57 @@ begin
                         end if;
                         
                         if key_enter = '1' and buffer_index = 5 then
-                            for i in 0 to 4 loop
-                                word_to_send((i+1)*8-1 downto i*8) <= word_buffer(i);
-                            end loop;
-                            tx_send_start <= '1';
-                            control_state <= WAIT_TX;
+                            if TEST_MODE then
+                                -- Test Mode: แสดงสีทดสอบทันทีโดยไม่ต้องส่งไป FPGA #1
+                                for col in 0 to 4 loop
+                                    if col = 0 then
+                                        game_grid(to_integer(current_row))(col).color <= "010";  -- Green
+                                    elsif col = 1 then
+                                        game_grid(to_integer(current_row))(col).color <= "110";  -- Yellow
+                                    elsif col = 2 then
+                                        game_grid(to_integer(current_row))(col).color <= "101";  -- Magenta (Gray)
+                                    elsif col = 3 then
+                                        game_grid(to_integer(current_row))(col).color <= "111";  -- White (test)
+                                    else
+                                        game_grid(to_integer(current_row))(col).color <= "011";  -- Cyan (test)
+                                    end if;
+                                end loop;
+                                current_row   <= current_row + 1;
+                                current_col   <= (others => '0');
+                                buffer_index  <= (others => '0');
+                                -- Stay in INPUT_LETTERS state
+                            else
+                                -- Normal Mode: ส่งไป FPGA #1
+                                for i in 0 to 4 loop
+                                    word_to_send((i+1)*8-1 downto i*8) <= word_buffer(i);
+                                end loop;
+                                tx_was_busy   <= '0';  -- Reset tracking flag
+                                control_state <= START_TX;
+                            end if;
                         end if;
                     
+                    when START_TX =>
+                        -- Send start signal for 1 clock cycle, then move to WAIT_TX
+                        tx_send_start <= '1';
+                        control_state <= WAIT_TX;
+                    
                     when WAIT_TX =>
-                        if tx_done = '1' then
-                            data_valid    <= '1';
+                        -- Keep tx_send_start high until transmitter is busy
+                        if tx_busy = '1' then
+                            tx_send_start <= '0';  -- Transmitter started, can release
+                            tx_was_busy   <= '1';  -- Mark that transmission started
+                        end if;
+                        
+                        -- Wait for transmitter to finish (tx_busy goes back to 0 after being 1)
+                        if tx_was_busy = '1' and tx_busy = '0' then
+                            -- Transmission complete
+                            data_valid_i  <= '1';
                             control_state <= WAIT_ACKNOWLEDGE;
                         end if;
                     
                     when WAIT_ACKNOWLEDGE =>
                         if acknowledge = '1' then
-                            data_valid    <= '0';
+                            data_valid_i  <= '0';
                             control_state <= RECEIVE_RESULT;
                         end if;
                     
@@ -349,6 +481,7 @@ begin
                                 control_state <= GAME_END;
                             else
                                 current_row   <= current_row + 1;
+                                current_col   <= (others => '0');
                                 buffer_index  <= (others => '0');
                                 control_state <= INPUT_LETTERS;
                             end if;

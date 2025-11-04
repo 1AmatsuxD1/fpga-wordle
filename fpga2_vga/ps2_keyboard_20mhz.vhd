@@ -119,9 +119,11 @@ begin
                 if scan_ready = '1' then
                     -- ตรวจสอบ break code (F0 = ปล่อยปุ่ม)
                     if scan_code = x"F0" then
-                        break_code <= '1';
-                    elsif break_code = '0' then  -- ประมวลผลเฉพาะเมื่อกดปุ่ม (ไม่ใช่ปล่อย)
-                        -- ตารางแปลง Scan Code → ASCII (Make Code)
+                        break_code <= '1';  -- ปุ่มถัดไปจะเป็น break code
+                    else
+                        -- ประมวลผลเฉพาะเมื่อกดปุ่ม (break_code = '0')
+                        if break_code = '0' then
+                            -- ตารางแปลง Scan Code → ASCII (Make Code)
                         case scan_code is
                             -- แถวบนสุด (QWERTY)
                             when x"15" => ascii_code <= x"51"; key_valid <= '1';  -- Q
@@ -157,13 +159,14 @@ begin
                             
                             -- ปุ่มพิเศษ
                             when x"5A" => key_enter     <= '1';  -- Enter
+                            when x"29" => key_enter     <= '1';  -- Space (สำรอง)
                             when x"66" => key_backspace <= '1';  -- Backspace
                             
                             when others => null;  -- ไม่ทำอะไร
                         end case;
+                        end if;
+                        -- รีเซ็ต break_code หลังประมวลผล scan code ทุกตัว
                         break_code <= '0';
-                    else
-                        break_code <= '0';  -- รีเซ็ต break code flag
                     end if;
                 end if;
             end if;

@@ -18,7 +18,8 @@ entity serial_transmitter is
         -- Parallel Input
         data_in     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
         send_start  : in  std_logic;  -- สัญญาณเริ่มส่ง
-        
+   
+         
         -- Serial Output
         serial_data : out std_logic;  -- ข้อมูล serial (ทีละ bit)
         serial_clk  : out std_logic;  -- clock สำหรับ receiver
@@ -35,45 +36,34 @@ architecture Behavioral of serial_transmitter is
     signal shift_reg   : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal bit_counter : integer range 0 to DATA_WIDTH;
     signal clk_divider : unsigned(3 downto 0);  -- หาร clock ลง
-    signal serial_clk_en : std_logic;
     signal serial_clk_i  : std_logic;
-    
+
 begin
     
-    -- Clock divider: 20 MHz → 2.5 MHz (หารด้วย 8)
-    -- Serial clock = 2.5 MHz → ส่ง 40 bits ใช้เวลา 16 us
+    -- Clock divider: 20 MHz -> 2.5 MHz (หารด้วย 8)
+    -- ส่ง clock เฉพาะตอน TRANSMIT เท่านั้น
     process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' or state = IDLE then
+            if rst = '1' then
                 clk_divider <= (others => '0');
-                serial_clk_en <= '0';
-            else
-                clk_divider <= clk_divider + 1;
-                if clk_divider = 3 then  -- Toggle ทุก 4 cycles
-                    serial_clk_en <= '1';
-                    clk_divider <= (others => '0');
-                else
-                    serial_clk_en <= '0';
-                end if;
-            end if;
-        end if;
-    end process;
-    
-    -- Serial clock generation
-    process(clk)
-    begin
-        if rising_edge(clk) then
-            if rst = '1' or state = IDLE then
                 serial_clk_i <= '0';
-            elsif serial_clk_en = '1' then
-                serial_clk_i <= not serial_clk_i;
+            elsif state = TRANSMIT then
+                clk_divider <= clk_divider + 1;
+                if clk_divider = 3 then  -- Toggle ทุก 4 cycles (2.5 MHz)
+                    serial_clk_i <= not serial_clk_i;
+                    clk_divider <= (others => '0');
+                end if;
+            else
+                -- IDLE หรือ FINISH: reset clock เป็น 0
+                clk_divider <= (others => '0');
+                serial_clk_i <= '0';
             end if;
         end if;
     end process;
     
     serial_clk <= serial_clk_i;
-    
+
     -- Main FSM
     process(clk)
     begin
@@ -86,7 +76,7 @@ begin
                 busy        <= '0';
                 done        <= '0';
             else
-                done <= '0';  -- Pulse signal
+                done <= '0'; -- Pulse signal
                 
                 case state is
                     when IDLE =>
@@ -97,12 +87,14 @@ begin
                             state       <= TRANSMIT;
                             busy        <= '1';
                         end if;
-                    
+
                     when TRANSMIT =>
                         busy <= '1';
                         
-                        -- ส่งข้อมูลที่ rising edge ของ serial clock
-                        if serial_clk_en = '1' and serial_clk_i = '0' then
+                        -- [FIX] ส่งข้อมูลที่ "ขอบขาลง" (falling edge) ของ serial clock
+                        -- (เมื่อ clk_divider = 3 และ serial_clk_i กำลังจะเปลี่ยนจาก '1' -> '0')
+                        -- เพื่อให้ข้อมูลนิ่งในจังหวะที่ Receiver (ซึ่งอ่านที่ขอบขาขึ้น) มาอ่าน
+                        if clk_divider = 3 and serial_clk_i = '1' then
                             -- ส่ง MSB first
                             serial_data <= shift_reg(DATA_WIDTH-1);
                             shift_reg   <= shift_reg(DATA_WIDTH-2 downto 0) & '0';

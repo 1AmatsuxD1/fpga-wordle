@@ -64,14 +64,20 @@ NET "game_status<1>" LOC = P8  | IOSTANDARD = LVCMOS33;  # K2 Pin 13
 NET "game_status<2>" LOC = P10 | IOSTANDARD = LVCMOS33;  # K2 Pin 11
 
 ################################################################################
-## Debug LEDs (Optional)
+## Debug LEDs
 ################################################################################
 
-NET "led_locked" LOC = P82 | IOSTANDARD = LVCMOS33;  # LED L0 - DCM Lock indicator
+## LED L0 - DCM Lock indicator
+NET "led_locked" LOC = P82 | IOSTANDARD = LVCMOS33;
 
-# NET "debug_led<1>" LOC = P81 | IOSTANDARD = LVCMOS33;  # LED L1
-# NET "debug_led<2>" LOC = P80 | IOSTANDARD = LVCMOS33;  # LED L2
-# NET "debug_led<3>" LOC = P79 | IOSTANDARD = LVCMOS33;  # LED L3
+## LEDs L1-L3 - FSM State indicator (3-bit binary)
+NET "debug_led<0>" LOC = P81 | IOSTANDARD = LVCMOS33;  # LED L1 - bit 0 (LSB)
+NET "debug_led<1>" LOC = P80 | IOSTANDARD = LVCMOS33;  # LED L2 - bit 1
+NET "debug_led<2>" LOC = P79 | IOSTANDARD = LVCMOS33;  # LED L3 - bit 2 (MSB)
+
+## Debug: TX Signals (ต่อไปหา FPGA #1 เพื่อเช็คว่าส่งจริง)
+NET "debug_tx_clk"     LOC = P12 | IOSTANDARD = LVCMOS33;  # K2 Pin 9
+NET "debug_data_valid" LOC = P15 | IOSTANDARD = LVCMOS33;  # K2 Pin 7
 
 ################################################################################
 ## Timing Constraints

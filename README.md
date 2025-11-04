@@ -1,233 +1,463 @@
-# FPGA Wordle Game# FPGA Wordle Game
+# FPGA Wordle Game# FPGA Wordle Game# FPGA Wordle Game
 
 
 
-A hardware implementation of the popular Wordle word-guessing game using dual Spartan-6 FPGA boards with VGA display output and PS/2 keyboard input.โปรเจกต์เกม Wordle บน FPGA 2 บอร์ด ใช้ VHDL และ Xilinx ISE
+โปรเจกต์เกม Wordle บน FPGA 2 บอร์ด ใช้ VHDL และ Xilinx ISE
 
 
 
-## 🎯 Project Overview## สถาปัตยกรรม
+## 🎯 Project OverviewA hardware implementation of the popular Wordle word-guessing game using dual Spartan-6 FPGA boards with VGA display output and PS/2 keyboard input.โปรเจกต์เกม Wordle บน FPGA 2 บอร์ด ใช้ VHDL และ Xilinx ISE
 
 
 
-This project implements a fully functional Wordle game on FPGA hardware, featuring:### FPGA Board #1: Game Logic
+เกม Wordle ทำงานบน FPGA 2 บอร์ด แยกหน้าที่:
 
-- **Dual-FPGA architecture**: Separate boards for game logic and display/input- ตรวจสอบคำทาย (Word Comparator)
+- **FPGA #1**: ตรวจสอบคำทายและเปรียบเทียบกับคำตอบ
 
-- **VGA output**: 640×480 @ 60Hz with 3-bit RGB color (8 colors)- เก็บคำตอบ (Word ROM)
-
-- **PS/2 keyboard input**: Type guesses using a standard keyboard- จัดการสถานะเกม (FSM)
-
-- **Serial communication**: Game state transferred between FPGAs at 115200 baud- Serial Communication Transmitter
-
-- **On-board word database**: 40 five-letter words stored in ROM
-
-**ไฟล์หลัก:**
-
-## 🛠️ Hardware Requirements- `fpga1_logic/fpga1_top_serial.vhd` - Top-level entity
-
-- `fpga1_logic/word_comparator_20mhz.vhd` - เปรียบเทียบคำ
-
-### Required Components- `fpga1_logic/word_rom_20mhz.vhd` - เก็บคำตอบ 16 คำ
-
-- **2× Surveyor SV6 boards** (Spartan-6 XC6SLX9 FPGA)- `fpga1_logic/fpga1_constraints_final.ucf` - Pin constraints
-
-- **VGA monitor** (supports 640×480 @ 60Hz)
-
-- **PS/2 keyboard**### FPGA Board #2: Display & Input
-
-- **VGA cable** (connected to FPGA2)- VGA Display (3-bit RGB, 8 สี)
-
-- **PS/2 cable or adapter** (connected to FPGA2)- PS/2 Keyboard Input
-
-- **Serial cable** (connects FPGA1 ↔ FPGA2)- Display Renderer
-
-- **USB cables** for programming both FPGAs- Serial Communication Receiver
+- **FPGA #2**: แสดงผลบน VGA และรับ input จาก PS/2 keyboard## 🎯 Project Overview## สถาปัตยกรรม
 
 
 
-### Board Specifications**ไฟล์หลัก:**
+**คุณสมบัติ:**
 
-- **FPGA**: Spartan-6 XC6SLX9-2TQG144- `fpga2_vga/fpga2_top_3bit_rgb_Version2.vhd` - Top-level entity
+- VGA output: 640×480 @ 60Hz, 3-bit RGB (8 สี)
 
-- **Clock**: 20 MHz on-board oscillator- `fpga2_vga/display_renderer_3bit_rgb_Version2.vhd` - แสดงผลตาราง
+- PS/2 keyboard inputThis project implements a fully functional Wordle game on FPGA hardware, featuring:### FPGA Board #1: Game Logic
+
+- Serial communication: 2.5 MHz synchronous protocol
+
+- Word database: 16 คำเก็บใน ROM- **Dual-FPGA architecture**: Separate boards for game logic and display/input- ตรวจสอบคำทาย (Word Comparator)
+
+
+
+---- **VGA output**: 640×480 @ 60Hz with 3-bit RGB color (8 colors)- เก็บคำตอบ (Word ROM)
+
+
+
+## 📁 Project Structure- **PS/2 keyboard input**: Type guesses using a standard keyboard- จัดการสถานะเกม (FSM)
+
+
+
+```- **Serial communication**: Game state transferred between FPGAs at 115200 baud- Serial Communication Transmitter
+
+fpga-wordle/
+
+├── fpga1_logic/              # FPGA #1: Game Logic- **On-board word database**: 40 five-letter words stored in ROM
+
+│   ├── fpga1_top_serial.vhd
+
+│   ├── word_comparator_20mhz.vhd**ไฟล์หลัก:**
+
+│   ├── word_rom_20mhz.vhd
+
+│   └── fpga1_constraints_final.ucf## 🛠️ Hardware Requirements- `fpga1_logic/fpga1_top_serial.vhd` - Top-level entity
+
+│
+
+├── fpga2_vga/                # FPGA #2: Display & Input- `fpga1_logic/word_comparator_20mhz.vhd` - เปรียบเทียบคำ
+
+│   ├── fpga2_top_3bit_rgb_Version2.vhd
+
+│   ├── display_renderer_3bit_rgb_Version2.vhd### Required Components- `fpga1_logic/word_rom_20mhz.vhd` - เก็บคำตอบ 16 คำ
+
+│   ├── vga_controller_20mhz.vhd
+
+│   ├── ps2_keyboard_20mhz.vhd- **2× Surveyor SV6 boards** (Spartan-6 XC6SLX9 FPGA)- `fpga1_logic/fpga1_constraints_final.ucf` - Pin constraints
+
+│   ├── clock_generator.vhd
+
+│   ├── char_rom.vhd- **VGA monitor** (supports 640×480 @ 60Hz)
+
+│   ├── fpga2_constraints_3bit_rgb_Version2.ucf
+
+│   └── archive/              # ไฟล์ทดสอบเก่า- **PS/2 keyboard**### FPGA Board #2: Display & Input
+
+│
+
+├── shared_modules/           # โมดูลที่ใช้ร่วมกัน- **VGA cable** (connected to FPGA2)- VGA Display (3-bit RGB, 8 สี)
+
+│   ├── serial_transmitter.vhd
+
+│   ├── serial_receiver.vhd- **PS/2 cable or adapter** (connected to FPGA2)- PS/2 Keyboard Input
+
+│   └── README.md
+
+│- **Serial cable** (connects FPGA1 ↔ FPGA2)- Display Renderer
+
+├── archive/                  # ไฟล์ที่ไม่ได้ใช้แล้ว
+
+│   ├── serial_transmitter_simple.vhd- **USB cables** for programming both FPGAs- Serial Communication Receiver
+
+│   ├── serial_communication_tb.vhd
+
+│   └── README.md
+
+│
+
+├── ARCHITECTURE.md           # สถาปัตยกรรมระบบ### Board Specifications**ไฟล์หลัก:**
+
+├── CONNECTION_GUIDE.md       # คู่มือต่อสาย
+
+├── CORRECT_WIRING.md         # การต่อสายที่ถูกต้อง- **FPGA**: Spartan-6 XC6SLX9-2TQG144- `fpga2_vga/fpga2_top_3bit_rgb_Version2.vhd` - Top-level entity
+
+├── FINAL_CONFIG.md           # การตั้งค่าสุดท้าย
+
+└── README.md                 # ไฟล์นี้- **Clock**: 20 MHz on-board oscillator- `fpga2_vga/display_renderer_3bit_rgb_Version2.vhd` - แสดงผลตาราง
+
+```
 
 - **I/O**: Standard 2.54mm headers- `fpga2_vga/vga_controller_20mhz.vhd` - VGA timing
 
+---
+
 - **Programming**: USB JTAG interface- `fpga2_vga/ps2_keyboard_20mhz.vhd` - Keyboard input
+
+## 🛠️ Hardware Requirements
 
 - `fpga2_vga/char_rom.vhd` - Character ROM
 
-## 🏗️ System Architecture- `fpga2_vga/fpga2_constraints_3bit_rgb_Version2.ucf` - Pin constraints
+### Required Components
+
+- **2× Spartan-6 XC6SLX9 FPGA boards** (144-pin TQFP)## 🏗️ System Architecture- `fpga2_vga/fpga2_constraints_3bit_rgb_Version2.ucf` - Pin constraints
+
+- **VGA monitor** (640×480 @ 60Hz)
+
+- **PS/2 keyboard**
+
+- **8× jumper wires** (Female-to-Female, ~15cm)
+
+- **2× USB cables** for programming```### Serial Communication
 
 
 
-```### Serial Communication
+### Board Specifications┌─────────────────────────────────────────────────────────┐- **FPGA2 → FPGA1**: ส่งคำทาย (40 bits = 5 letters)
 
-┌─────────────────────────────────────────────────────────┐- **FPGA2 → FPGA1**: ส่งคำทาย (40 bits = 5 letters)
+- **FPGA:** Xilinx Spartan-6 XC6SLX9-2TQG144C
 
-│                     FPGA WORDLE SYSTEM                  │- **FPGA1 → FPGA2**: ส่งผลลัพธ์ (15 bits = 5×3 bits สี)
+- **Clock:** 20 MHz onboard oscillator│                     FPGA WORDLE SYSTEM                  │- **FPGA1 → FPGA2**: ส่งผลลัพธ์ (15 bits = 5×3 bits สี)
 
-└─────────────────────────────────────────────────────────┘
+- **I/O:** 102 user I/O pins
 
-**ไฟล์ที่ใช้ร่วมกัน:**
+- **Memory:** 576 Kb block RAM└─────────────────────────────────────────────────────────┘
 
-    ┌──────────────────┐         Serial          ┌──────────────────┐- `serial_receiver.vhd` - รับข้อมูล serial
 
-    │     FPGA 1       │◄──────115200 baud──────►│     FPGA 2       │- `serial_transmitter.vhd` - ส่งข้อมูล serial
 
-    │   Game Logic     │                         │  Display/Input   │- `serial_communication_tb.vhd` - Testbench
+---**ไฟล์ที่ใช้ร่วมกัน:**
 
-    └──────────────────┘                         └──────────────────┘
 
-            │                                              │## สี (3-bit RGB)
 
-            │                                              ├─► VGA Monitor- 🟩 **เขียว (010)**: ตัวอักษรถูกต้องและตำแหน่งถูก
+## 🔌 Wiring Connections    ┌──────────────────┐         Serial          ┌──────────────────┐- `serial_receiver.vhd` - รับข้อมูล serial
 
-            │                                              │   (640×480@60Hz)- 🟨 **เหลือง (110)**: ตัวอักษรถูกต้องแต่ตำแหน่งผิด
 
-            ├─► Word ROM (40 words)                       │- 🟣 **ม่วง (101)**: ตัวอักษรไม่มีในคำตอบ (แทนสีเทา)
+
+### FPGA #1 ↔ FPGA #2 Serial Communication    │     FPGA 1       │◄──────115200 baud──────►│     FPGA 2       │- `serial_transmitter.vhd` - ส่งข้อมูล serial
+
+
+
+**Pin-to-Pin Straight-Through Wiring:**    │   Game Logic     │                         │  Display/Input   │- `serial_communication_tb.vhd` - Testbench
+
+
+
+| Signal | FPGA #2 Pin | ↔ | FPGA #1 Pin | Direction |    └──────────────────┘                         └──────────────────┘
+
+|--------|-------------|---|-------------|-----------|
+
+| serial_tx_data | P5 | ↔ | P5 | FPGA2 → FPGA1 |            │                                              │## สี (3-bit RGB)
+
+| serial_tx_clk | P7 | ↔ | P7 | FPGA2 → FPGA1 |
+
+| data_valid | P9 | ↔ | P9 | FPGA2 → FPGA1 |            │                                              ├─► VGA Monitor- 🟩 **เขียว (010)**: ตัวอักษรถูกต้องและตำแหน่งถูก
+
+| serial_rx_data | P11 | ↔ | P11 | FPGA1 → FPGA2 |
+
+| serial_rx_clk | P14 | ↔ | P14 | FPGA1 → FPGA2 |            │                                              │   (640×480@60Hz)- 🟨 **เหลือง (110)**: ตัวอักษรถูกต้องแต่ตำแหน่งผิด
+
+| acknowledge | P16 | ↔ | P16 | FPGA1 → FPGA2 |
+
+| result_valid | P21 | ↔ | P21 | FPGA1 → FPGA2 |            ├─► Word ROM (40 words)                       │- 🟣 **ม่วง (101)**: ตัวอักษรไม่มีในคำตอบ (แทนสีเทา)
+
+| **GND** | **GND** | ↔ | **GND** | **Common Ground** |
 
             ├─► Word Comparator                           └─► PS/2 Keyboard- ⚪ **ขาว (111)**: ขอบและตัวอักษร
 
+⚠️ **สำคัญ:** ต้องต่อ GND ระหว่าง 2 บอร์ด!
+
             └─► Serial Transmitter                             (A-Z input)- ⚫ **ดำ (000)**: พื้นหลัง
 
+📄 รายละเอียดเพิ่มเติม: [CONNECTION_GUIDE.md](CONNECTION_GUIDE.md)
 
+
+
+---
 
 Clock: 20 MHz (input) → DCM → 50 MHz → 25 MHz (VGA pixel clock)## Clock
 
+## 🚀 Getting Started
+
 ```- ทั้ง 2 FPGA ใช้ Clock 20 MHz
 
-- Serial Clock: 2.5 MHz (สำหรับการสื่อสาร)
+### Prerequisites
 
-### FPGA 1: Game Logic Board- VGA Pixel Clock: 10 MHz (divider จาก 20 MHz)
+- **Xilinx ISE Design Suite 14.7** (or later)- Serial Clock: 2.5 MHz (สำหรับการสื่อสาร)
 
-- **Purpose**: Manages game state and word checking
+- **iMPACT** programmer tool
 
-- **Components**:## การใช้งาน
-
-  - `word_rom_20mhz.vhd`: 40-word database1. เปิดโปรเจกต์ด้วย Xilinx ISE
-
-  - `word_comparator_20mhz.vhd`: Checks guesses and assigns colors2. Synthesize แต่ละ FPGA แยกกัน
-
-  - `serial_transmitter.vhd`: Sends results to FPGA23. Program ลง FPGA board
-
-- **Top-level**: `fpga1_top_serial.vhd`4. เชื่อมต่อสาย serial ระหว่าง 2 บอร์ด
-
-- **Constraints**: `fpga1_constraints_final.ucf`5. เล่นเกม Wordle!
+- **Git** (for cloning repository)### FPGA 1: Game Logic Board- VGA Pixel Clock: 10 MHz (divider จาก 20 MHz)
 
 
 
-### FPGA 2: Display/Input Board## การพัฒนา
+### Installation- **Purpose**: Manages game state and word checking
 
-- **Purpose**: Handles VGA output and keyboard input- **ภาษา**: VHDL
 
-- **Components**:- **เครื่องมือ**: Xilinx ISE
 
-  - `clock_generator.vhd`: DCM-based 25 MHz pixel clock generator- **FPGA**: Spartan-3E หรือ Spartan-6
+1. **Clone repository:**- **Components**:## การใช้งาน
 
-  - `vga_controller_20mhz.vhd`: VGA timing (H-sync, V-sync)
+```bash
 
-  - `display_renderer_3bit_rgb_Version2.vhd`: Renders 6×5 game grid## License
+git clone https://github.com/1AmatsuxD1/fpga-wordle.git  - `word_rom_20mhz.vhd`: 40-word database1. เปิดโปรเจกต์ด้วย Xilinx ISE
 
-  - `char_rom.vhd`: 8×8 pixel font for A-Z charactersMIT License
+cd fpga-wordle
 
-  - `ps2_keyboard_20mhz.vhd`: Keyboard input handler
+```  - `word_comparator_20mhz.vhd`: Checks guesses and assigns colors2. Synthesize แต่ละ FPGA แยกกัน
+
+
+
+2. **Open ISE projects:**  - `serial_transmitter.vhd`: Sends results to FPGA23. Program ลง FPGA board
+
+   - FPGA #1: Open `fpga1_logic/fpga1_top_serial.xise`
+
+   - FPGA #2: Open `fpga2_vga/fpga2_top_3bit_rgb_Version2.xise`- **Top-level**: `fpga1_top_serial.vhd`4. เชื่อมต่อสาย serial ระหว่าง 2 บอร์ด
+
+
+
+3. **Synthesize and Program:**- **Constraints**: `fpga1_constraints_final.ucf`5. เล่นเกม Wordle!
+
+
+
+   **For both FPGAs:**
+
+   - Double-click "Synthesize - XST"
+
+   - Double-click "Implement Design"### FPGA 2: Display/Input Board## การพัฒนา
+
+   - Double-click "Generate Programming File"
+
+   - Upload `.bit` file using iMPACT- **Purpose**: Handles VGA output and keyboard input- **ภาษา**: VHDL
+
+
+
+4. **Connect wiring** ตามตารางด้านบน- **Components**:- **เครื่องมือ**: Xilinx ISE
+
+
+
+5. **Connect peripherals:**  - `clock_generator.vhd`: DCM-based 25 MHz pixel clock generator- **FPGA**: Spartan-3E หรือ Spartan-6
+
+   - VGA monitor → FPGA #2
+
+   - PS/2 keyboard → FPGA #2  - `vga_controller_20mhz.vhd`: VGA timing (H-sync, V-sync)
+
+
+
+6. **Power on** และเริ่มเล่น!  - `display_renderer_3bit_rgb_Version2.vhd`: Renders 6×5 game grid## License
+
+
+
+---  - `char_rom.vhd`: 8×8 pixel font for A-Z charactersMIT License
+
+
+
+## 🎮 How to Play  - `ps2_keyboard_20mhz.vhd`: Keyboard input handler
+
   - `serial_receiver.vhd`: Receives game state from FPGA1
-- **Top-level**: `fpga2_top_3bit_rgb_Version2.vhd`
-- **Constraints**: `fpga2_constraints_3bit_rgb_Version2.ucf`
-- **Standalone test**: `fpga2_standalone_working.vhd` (VGA + keyboard only)
 
-## 📁 Project Structure
+1. **พิมพ์คำทาย** (5 ตัวอักษร A-Z)- **Top-level**: `fpga2_top_3bit_rgb_Version2.vhd`
 
-```
+2. **กด Enter** เพื่อส่งคำทาย- **Constraints**: `fpga2_constraints_3bit_rgb_Version2.ucf`
+
+3. **ดูสี** บนหน้าจอ:- **Standalone test**: `fpga2_standalone_working.vhd` (VGA + keyboard only)
+
+   - 🟢 **เขียว** = ตัวอักษรถูกต้องและอยู่ตำแหน่งถูก
+
+   - 🟡 **เหลือง** = ตัวอักษรมีในคำตอบแต่ตำแหน่งผิด## 📁 Project Structure
+
+   - ⚫ **เทา (Magenta)** = ตัวอักษรไม่มีในคำตอบ
+
+4. **เล่นต่อ** จนกว่าจะเดาถูกหรือครบ 6 ครั้ง```
+
 wordle/
-├── README.md                          # This file
-├── ARCHITECTURE.md                    # Detailed system architecture
-├── DEVELOPMENT_NOTES.md               # Development history and troubleshooting
-├── .github/
+
+**ตัวอย่างคำในเกม:**├── README.md                          # This file
+
+- APPLE, GRAPE, LEMON, PEACH, MANGO├── ARCHITECTURE.md                    # Detailed system architecture
+
+- TIGER, EAGLE, MOUSE, HORSE, SNAKE├── DEVELOPMENT_NOTES.md               # Development history and troubleshooting
+
+- และอื่นๆ อีก 6 คำ├── .github/
+
 │   └── copilot-instructions.md        # AI assistant guidelines
-├── .gitignore                         # Xilinx ISE build artifacts
+
+---├── .gitignore                         # Xilinx ISE build artifacts
+
 │
-├── fpga1_logic/                       # FPGA 1: Game Logic
+
+## 🎨 Display Features├── fpga1_logic/                       # FPGA 1: Game Logic
+
 │   ├── fpga1_top_serial.vhd          # Top-level entity
-│   ├── fpga1_constraints_final.ucf   # Pin assignments
-│   ├── word_rom_20mhz.vhd            # 40-word database
-│   └── word_comparator_20mhz.vhd     # Word checking logic
-│
-├── fpga2_vga/                         # FPGA 2: Display/Input
+
+- **หน้าจอ VGA:** 640×480 @ 60Hz│   ├── fpga1_constraints_final.ucf   # Pin assignments
+
+- **สี:** 3-bit RGB (8 สี)│   ├── word_rom_20mhz.vhd            # 40-word database
+
+- **Title:** "WORDLE" สีเขียวด้านบน│   └── word_comparator_20mhz.vhd     # Word checking logic
+
+- **Grid:** 6×5 (6 แถว × 5 ตัวอักษร)│
+
+- **Font:** 8×8 ASCII character ROM, scaled 4× → 32×32 pixels├── fpga2_vga/                         # FPGA 2: Display/Input
+
 │   ├── fpga2_top_3bit_rgb_Version2.vhd           # Top-level entity (full system)
-│   ├── fpga2_constraints_3bit_rgb_Version2.ucf   # Pin assignments
+
+---│   ├── fpga2_constraints_3bit_rgb_Version2.ucf   # Pin assignments
+
 │   ├── fpga2_standalone_working.vhd   # Standalone test (no serial)
-│   ├── fpga2_standalone_working.ucf   # Standalone constraints
+
+## 🔧 Technical Details│   ├── fpga2_standalone_working.ucf   # Standalone constraints
+
 │   ├── clock_generator.vhd            # DCM: 20MHz → 25MHz
-│   ├── vga_controller_20mhz.vhd       # VGA timing generator
-│   ├── display_renderer_3bit_rgb_Version2.vhd  # Game grid renderer
-│   ├── char_rom.vhd                   # Character font ROM
-│   ├── ps2_keyboard_20mhz.vhd         # Keyboard input
-│   └── archive/                       # Old test files (not used)
+
+### Clock Architecture│   ├── vga_controller_20mhz.vhd       # VGA timing generator
+
+- **Main Clock:** 20 MHz (onboard oscillator)│   ├── display_renderer_3bit_rgb_Version2.vhd  # Game grid renderer
+
+- **DCM Output:** 50 MHz│   ├── char_rom.vhd                   # Character font ROM
+
+- **VGA Pixel Clock:** 25 MHz (50 MHz ÷ 2)│   ├── ps2_keyboard_20mhz.vhd         # Keyboard input
+
+- **Serial Clock:** 2.5 MHz (20 MHz ÷ 8)│   └── archive/                       # Old test files (not used)
+
 │       ├── vga_test_*.vhd
-│       └── fpga2_standalone_test.vhd
-│
-├── serial_communication_tb.vhd        # Serial communication testbench
-├── serial_receiver.vhd                # Serial RX (shared)
-└── serial_transmitter.vhd             # Serial TX (shared)
-```
 
-## 🚀 Quick Start Guide
+### Serial Communication Protocol│       └── fpga2_standalone_test.vhd
 
-### 1. Setup Development Environment
+- **Type:** Synchronous Serial│
+
+- **Clock:** 2.5 MHz├── serial_communication_tb.vhd        # Serial communication testbench
+
+- **Data Width:** 40 bits (word guess), 15 bits (result)├── serial_receiver.vhd                # Serial RX (shared)
+
+- **Timing:** └── serial_transmitter.vhd             # Serial TX (shared)
+
+  - Transmitter sends data on falling edge```
+
+  - Receiver samples data on rising edge
+
+- **Synchronization:** 3-stage synchronizer for metastability protection## 🚀 Quick Start Guide
+
+
+
+---### 1. Setup Development Environment
+
 - Install **Xilinx ISE 14.7** (Windows/Linux)
-- Install **iMPACT** programmer for USB JTAG
+
+## 🐛 Bug Fixes (2025-11-05)- Install **iMPACT** programmer for USB JTAG
+
 - Clone this repository:
-  ```bash
-  git clone https://github.com/tachhh/fpga-wordle.git
-  cd fpga-wordle
+
+### Bug #1: Missing First Bit  ```bash
+
+**ปัญหา:** Receiver พลาดบิตแรก (MSB)    git clone https://github.com/tachhh/fpga-wordle.git
+
+**แก้ไข:** อ่านบิตแรกทันทีใน IDLE state และตั้ง `bit_counter = 1`  cd fpga-wordle
+
   ```
 
-### 2. Build FPGA1 (Game Logic)
-1. Open Xilinx ISE
+### Bug #2: Race Condition
+
+**ปัญหา:** ส่งข้อมูลและ clock พร้อมกัน  ### 2. Build FPGA1 (Game Logic)
+
+**แก้ไข:** ส่งข้อมูลที่ falling edge แทน rising edge1. Open Xilinx ISE
+
 2. Create new project: `fpga1_logic/fpga1_wordle`
-3. Add files:
+
+📄 รายละเอียด: [shared_modules/README.md](shared_modules/README.md)3. Add files:
+
    - `fpga1_top_serial.vhd`
-   - `word_rom_20mhz.vhd`
+
+---   - `word_rom_20mhz.vhd`
+
    - `word_comparator_20mhz.vhd`
-   - `serial_transmitter.vhd`
+
+## 📚 Documentation   - `serial_transmitter.vhd`
+
    - `fpga1_constraints_final.ucf`
-4. Set top-level entity: `fpga1_top_serial`
-5. Synthesize → Implement → Generate bitstream
-6. Flash to FPGA1 board via iMPACT
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - สถาปัตยกรรมระบบโดยละเอียด4. Set top-level entity: `fpga1_top_serial`
+
+- **[CONNECTION_GUIDE.md](CONNECTION_GUIDE.md)** - คู่มือการต่อสายทั้งหมด5. Synthesize → Implement → Generate bitstream
+
+- **[CORRECT_WIRING.md](CORRECT_WIRING.md)** - ตรวจสอบการต่อสายที่ถูกต้อง6. Flash to FPGA1 board via iMPACT
+
+- **[FINAL_CONFIG.md](FINAL_CONFIG.md)** - การตั้งค่าสุดท้าย
 
 ### 3. Build FPGA2 (Display/Input)
-1. Open Xilinx ISE
+
+---1. Open Xilinx ISE
+
 2. Create new project: `fpga2_vga/fpga2_vga`
-3. Add files:
+
+## 🤝 Contributing3. Add files:
+
    - `fpga2_top_3bit_rgb_Version2.vhd`
-   - `clock_generator.vhd`
-   - `vga_controller_20mhz.vhd`
-   - `display_renderer_3bit_rgb_Version2.vhd`
-   - `char_rom.vhd`
-   - `ps2_keyboard_20mhz.vhd`
+
+Contributions are welcome! Please:   - `clock_generator.vhd`
+
+1. Fork the repository   - `vga_controller_20mhz.vhd`
+
+2. Create a feature branch   - `display_renderer_3bit_rgb_Version2.vhd`
+
+3. Make your changes   - `char_rom.vhd`
+
+4. Submit a pull request   - `ps2_keyboard_20mhz.vhd`
+
    - `serial_receiver.vhd`
-   - `fpga2_constraints_3bit_rgb_Version2.ucf`
+
+---   - `fpga2_constraints_3bit_rgb_Version2.ucf`
+
 4. Set top-level entity: `fpga2_top_3bit_rgb_Version2`
-5. Synthesize → Implement → Generate bitstream
+
+## 📝 License5. Synthesize → Implement → Generate bitstream
+
 6. Flash to FPGA2 board via iMPACT
 
-### 4. Hardware Connections
-1. Connect VGA cable: FPGA2 K4 connector → VGA monitor
-2. Connect PS/2 keyboard: FPGA2 K2 connector → PS/2 keyboard
-3. Connect serial cable: FPGA1 TX pin → FPGA2 RX pin (with ground)
-4. Power on both boards
-5. Turn on VGA monitor
+This project is open source and available under the MIT License.
 
-### 5. Play Wordle!
+### 4. Hardware Connections
+
+---1. Connect VGA cable: FPGA2 K4 connector → VGA monitor
+
+2. Connect PS/2 keyboard: FPGA2 K2 connector → PS/2 keyboard
+
+## 👥 Authors3. Connect serial cable: FPGA1 TX pin → FPGA2 RX pin (with ground)
+
+4. Power on both boards
+
+**1AmatsuxD1** - Initial work and development5. Turn on VGA monitor
+
+
+
+---### 5. Play Wordle!
+
 - **Type letters A-Z** on keyboard (uppercase only)
-- **Backspace**: Delete last letter
+
+## 📞 Contact- **Backspace**: Delete last letter
+
 - **Enter**: Submit 5-letter guess
-- **Colors**:
+
+For questions or issues, please open an issue on GitHub.- **Colors**:
+
   - 🟩 **Green**: Correct letter, correct position
-  - 🟨 **Yellow**: Correct letter, wrong position
+
+**Repository:** https://github.com/1AmatsuxD1/fpga-wordle  - 🟨 **Yellow**: Correct letter, wrong position
+
   - 🟪 **Magenta**: Letter not in word (using magenta instead of gray for 3-bit RGB)
 - **Win**: Guess the word in 6 tries or less!
 

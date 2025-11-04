@@ -18,7 +18,8 @@ entity serial_receiver is
         -- Serial Input
         serial_data : in  std_logic;  -- ข้อมูล serial
         serial_clk  : in  std_logic;  -- clock จาก transmitter
-        
+   
+             
         -- Parallel Output
         data_out    : out std_logic_vector(DATA_WIDTH-1 downto 0);
         data_ready  : out std_logic;  -- ข้อมูลพร้อม
@@ -33,12 +34,12 @@ architecture Behavioral of serial_receiver is
     
     signal shift_reg   : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal bit_counter : integer range 0 to DATA_WIDTH;
-    
+
     -- Synchronizer สำหรับ serial_clk และ serial_data
     signal serial_clk_sync  : std_logic_vector(2 downto 0);
     signal serial_data_sync : std_logic_vector(2 downto 0);
     signal serial_clk_rise  : std_logic;
-    
+
 begin
     
     -- Synchronizer: ป้องกัน metastability
@@ -49,10 +50,10 @@ begin
             serial_data_sync <= serial_data_sync(1 downto 0) & serial_data;
         end if;
     end process;
-    
+
     -- ตรวจจับ rising edge ของ serial_clk
     serial_clk_rise <= '1' when serial_clk_sync(2 downto 1) = "01" else '0';
-    
+
     -- Main FSM
     process(clk)
     begin
@@ -65,14 +66,17 @@ begin
                 data_ready  <= '0';
                 busy        <= '0';
             else
-                data_ready <= '0';  -- Pulse signal
+                data_ready <= '0'; -- Pulse signal
                 
                 case state is
                     when IDLE =>
                         busy <= '0';
-                        -- ตรวจจับเมื่อ serial_clk เริ่มทำงาน
+                        
+                        -- [FIX] ตรวจจับเมื่อ serial_clk เริ่มทำงาน
                         if serial_clk_rise = '1' then
-                            bit_counter <= 0;
+                            -- "รับบิตแรก (MSB) ทันที" ที่เจอขอบขาขึ้นครั้งแรก
+                            shift_reg   <= shift_reg(DATA_WIDTH-2 downto 0) & serial_data_sync(2); 
+                            bit_counter <= 1;  -- เริ่มนับเป็น 1 (เพราะได้มาแล้ว 1 บิต)
                             state       <= RECEIVE;
                             busy        <= '1';
                         end if;
@@ -80,7 +84,7 @@ begin
                     when RECEIVE =>
                         busy <= '1';
                         
-                        -- รับข้อมูลที่ rising edge ของ serial_clk
+                        -- รับข้อมูลที่ rising edge ของ serial_clk (บิตที่ 2 ถึง DATA_WIDTH)
                         if serial_clk_rise = '1' then
                             -- รับ MSB first
                             shift_reg <= shift_reg(DATA_WIDTH-2 downto 0) & serial_data_sync(2);
