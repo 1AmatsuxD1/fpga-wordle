@@ -30,10 +30,24 @@ constant TEST_MODE : boolean := false;  // false = เชื่อมต่อ�
 
 ### **4. Debug Signals**
 ```vhdl
-// LED L0: DCM locked
-// LED L1-L3: buffer_index (จำนวนตัวอักษร 0-5)
-// Pin P12: key_valid_latch
-// Pin P15: key_enter_latch (ติดค้าง 1 วินาที)
+// LED Configuration (UCF):
+// LED L0 (P82): DCM locked (clk_locked)
+// LED L1 (P81): debug_led[0] - FSM state bit 0
+// LED L2 (P80): debug_led[1] - FSM state bit 1
+// LED L3 (P79): debug_led[2] - tx_busy
+
+// Debug Pin Outputs:
+// Pin P12: debug_tx_clk = serial_tx_clk_i (clock output)
+// Pin P15: debug_data_valid = data_valid_i (data valid signal)
+
+// LED Interpretation (L3:L2:L1 = binary):
+// 000 = INPUT_LETTERS
+// 001 = START_TX
+// 101 = WAIT_TX (with tx_busy=1)
+// 001 = WAIT_TX (tx_busy=0, waiting to complete)
+// 010 = WAIT_ACKNOWLEDGE
+// 110 = RECEIVE_RESULT
+// 011 = GAME_END
 ```
 
 ---
@@ -54,10 +68,17 @@ constant MAX_GUESSES : integer := 6;  // ทาย 6 ครั้ง
 
 ### **2. Debug LEDs**
 ```vhdl
-// LED L3: Heartbeat (กระพริบทุก 0.5 วินาที)
-// LED L0: data_valid (รับสัญญาณจาก FPGA #2)
-// LED L1: word_received (รับคำสำเร็จ)
-// LED L2: serial_rx_clk (กระพริบเมื่อรับ clock)
+// LED Configuration (UCF):
+// LED L3 (P79): heartbeat_led (กระพริบทุก 0.5 วินาที)
+// LED L0 (P82): debug_led[0] = data_valid_s2 (synchronized)
+// LED L1 (P81): debug_led[1] = word_received
+// LED L2 (P80): debug_led[2] = serial_rx_clk
+
+// LED Functions:
+// L3: ติดกระพริบ = FPGA ทำงานปกติ
+// L0: ติด = ได้รับ data_valid จาก FPGA #2
+// L1: ติด = รับคำทาย 40 bits สำเร็จ
+// L2: กระพริบ = กำลังรับ serial clock จาก FPGA #2
 ```
 
 ---
@@ -141,6 +162,75 @@ GND ↔ GND  ⚠️ สำคัญ!
 
 ---
 
+## 📌 **Complete Pin Assignment Reference:**
+
+### **FPGA #2 Pin Assignments:**
+```
+// Serial TX (to FPGA #1):
+P5  - serial_tx_data
+P7  - serial_tx_clk
+P9  - data_valid
+
+// Serial RX (from FPGA #1):
+P11 - serial_rx_data
+P14 - serial_rx_clk
+P16 - acknowledge
+P21 - result_valid
+
+// Game Status (from FPGA #1):
+P6  - game_status[0]
+P8  - game_status[1]
+P10 - game_status[2]
+
+// Debug Outputs:
+P12 - debug_tx_clk (serial_tx_clk monitor)
+P15 - debug_data_valid (data_valid monitor)
+
+// LEDs:
+P82 - led_locked (L0)
+P81 - debug_led[0] (L1)
+P80 - debug_led[1] (L2)
+P79 - debug_led[2] (L3)
+
+// VGA:
+P35 - vga_r (Red)
+P33 - vga_g (Green)
+P34 - vga_b (Blue)
+P43 - vga_hsync
+P44 - vga_vsync
+
+// PS/2 Keyboard:
+P22 - ps2_clk
+P23 - ps2_data
+```
+
+### **FPGA #1 Pin Assignments:**
+```
+// Serial RX (from FPGA #2):
+P5  - serial_rx_data
+P7  - serial_rx_clk
+P9  - data_valid
+
+// Serial TX (to FPGA #2):
+P11 - serial_tx_data
+P14 - serial_tx_clk
+P16 - acknowledge
+P21 - result_valid
+
+// Game Status (to FPGA #2):
+P6  - game_status[0]
+P8  - game_status[1]
+P10 - game_status[2]
+
+// LEDs:
+P79 - heartbeat_led (L3)
+P82 - debug_led[0] (L0)
+P81 - debug_led[1] (L1)
+P80 - debug_led[2] (L2)
+```
+
+---
+
 ## ✅ **Final Checks Before Upload:**
 
 ### **1. Code Verification:**
@@ -199,6 +289,42 @@ GND ↔ GND  ⚠️ สำคัญ!
 
 6. ทำซ้ำได้ 6 รอบ
 ```
+
+---
+
+## 🔍 **LED Troubleshooting Guide:**
+
+### **FPGA #2 LED States:**
+
+| LED State | L3 | L2 | L1 | L0 | Meaning |
+|-----------|----|----|----|----|---------|
+| Power On | 0 | 0 | 0 | 1 | DCM locked, waiting for input |
+| Typing (1 letter) | 0 | 0 | 1 | 1 | Buffer has 1 letter |
+| Typing (5 letters) | 1 | 0 | 1 | 1 | Buffer full, ready to send |
+| START_TX | 0 | 0 | 1 | 1 | Starting transmission |
+| WAIT_TX (busy) | 1 | 0 | 1 | 1 | Transmitting (tx_busy=1) |
+| WAIT_ACK | 0 | 1 | 0 | 1 | Waiting for FPGA #1 acknowledge |
+| Success | 0 | 0 | 0 | 1 | Back to INPUT_LETTERS |
+
+**⚠️ If stuck at:**
+- **`010` (WAIT_ACK)** = FPGA #1 not responding → Check wiring P11,P14,P16,P21
+- **`101` (WAIT_TX forever)** = tx_busy stuck → Check serial_transmitter
+- **`001` (START_TX forever)** = Not entering WAIT_TX → Check tx_send_start
+
+### **FPGA #1 LED States:**
+
+| LED | Pin | Signal | Normal Behavior |
+|-----|-----|--------|-----------------|
+| L3 | P79 | heartbeat | กระพริบทุก 0.5 วินาที |
+| L2 | P80 | serial_rx_clk | กระพริบเมื่อรับข้��มูล |
+| L1 | P81 | word_received | ติดเมื่อรับครบ 40 bits |
+| L0 | P82 | data_valid | ติดเมื่อ FPGA #2 ส่ง data_valid |
+
+**⚠️ If:**
+- **L3 not blinking** = FPGA #1 not running → Re-upload .bit file
+- **L0 ON, L2 OFF** = No serial clock → Check P7 connection
+- **L0 ON, L2 ON, L1 OFF** = Clock but no data complete → Check serial_receiver
+- **All LEDs OFF** = Power issue or wrong .bit file
 
 ---
 
